@@ -1,8 +1,8 @@
 const router = require('express').Router();
 const connectToMongo = require("../modules/mongodb");
-const checkPermission = require("../middleware/checkPermission");
+const checkAdmin = require("../middleware/checkAdmin");
 
-router.get("/", checkPermission, async (req, res, next) => {
+router.get("/", checkAdmin, async (req, res, next) => {
    const { userId, api, sortOrder, startTime, endTime } = req.query;
    const result = {
       message: null,

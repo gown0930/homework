@@ -1,7 +1,6 @@
 const router = require("express").Router()
 const { queryDatabase } = require("../modules/connection");
 const createResult = require("../modules/result");
-const loginCheck = require("../middleware/loginCheck");
 const logoutCheck = require("../middleware/logoutcheck");
 const createValidationMiddleware = require('../middleware/validate');
 const checkIdDuplicate = require('../middleware/checkIdDuplicate');
@@ -9,11 +8,13 @@ const checkPhoneDuplicate = require('../middleware/checkPhoneDuplicate');
 const checkPasswordMatch = require('../middleware/checkPasswordMatch');
 
 const checkLogin = require("../middleware/checkLogin")
+const checkLogout = require("../middleware/checkLogout")
+const { addToBlacklist } = require("../modules/blackList");
 const jwt = require("jsonwebtoken")
 
 //===========로그인 & 회원가입 ===============
 // 로그인
-router.post('/login', logoutCheck, createValidationMiddleware(['id', 'pw']), async (req, res, next) => {
+router.post('/login', checkLogout, createValidationMiddleware(['id', 'pw']), async (req, res, next) => {
    const { id, pw } = req.body;
    const result = createResult();
 
@@ -29,14 +30,14 @@ router.post('/login', logoutCheck, createValidationMiddleware(['id', 'pw']), asy
       }
 
       const login = rows[0];
-      req.session.user = {
-         idx: login.idx,
-         id: login.id,
-         name: login.name,
-         phone_num: login.phone_num,
-         email: login.email,
-         isAdmin: login.isadmin
-      };
+      // req.session.user = {
+      //    idx: login.idx,
+      //    id: login.id,
+      //    name: login.name,
+      //    phone_num: login.phone_num,
+      //    email: login.email,
+      //    isAdmin: login.isadmin
+      // };
 
       const token = jwt.sign({
          idx: login.idx,
@@ -58,20 +59,29 @@ router.post('/login', logoutCheck, createValidationMiddleware(['id', 'pw']), asy
       next(error);
    }
 });
+
 // 로그아웃
 router.post("/logout", (req, res) => {
    const result = createResult();
+
    try {
-      // 세션에서 사용자 정보 삭제
-      delete req.session.user;
-      res.status(200).send(result);
+      const { token } = req.headers;
+
+      // 블랙리스트에 토큰 추가
+      addToBlacklist(token);
+
+      // 클라이언트에서 토큰을 삭제하도록 응답
+      result.message = '로그아웃이 완료되었습니다.';
+      res.status(200).json(result);
    } catch (error) {
-      next(error);
+      console.error(error);
+      res.status(500).json({ success: false, message: '서버 에러' });
    }
 });
+
 // 회원가입
 router.post("/signup",
-   logoutCheck,
+   checkLogout,
    createValidationMiddleware(['id', 'pw', 'name', 'phone_num', 'email']),
    checkIdDuplicate,
    checkPhoneDuplicate,
@@ -92,7 +102,7 @@ router.post("/signup",
    });
 
 // 아이디 찾기
-router.get("/find-id", logoutCheck, createValidationMiddleware(['name', 'phone_num', 'email']), async (req, res) => {
+router.get("/find-id", checkLogout, createValidationMiddleware(['name', 'phone_num', 'email']), async (req, res) => {
    const { name, phone_num, email } = req.query;
    const result = createResult();
 
@@ -117,7 +127,7 @@ router.get("/find-id", logoutCheck, createValidationMiddleware(['name', 'phone_n
 });
 
 // 비밀번호 찾기
-router.get("/find-pw", logoutCheck, createValidationMiddleware(['id', 'name', 'phone_num', 'email']), async (req, res) => {
+router.get("/find-pw", checkLogout, createValidationMiddleware(['id', 'name', 'phone_num', 'email']), async (req, res) => {
    const { id, name, phone_num, email } = req.query;
    const result = createResult();
 
@@ -142,12 +152,10 @@ router.get("/find-pw", logoutCheck, createValidationMiddleware(['id', 'name', 'p
 
 //============내 정보================
 // 내 정보 보기
-router.get("/", loginCheck, checkLogin, async (req, res) => {
+router.get("/", checkLogin, async (req, res) => {
    const result = createResult();
    try {
-      const user = req.user;
-      // 사용자 정보를 가져와서 처리
-      const { id, name, phone_num, email } = user;
+      const { id, name, phone_num, email } = req.decoded;
       result.data = {
          id,
          name,
@@ -162,12 +170,11 @@ router.get("/", loginCheck, checkLogin, async (req, res) => {
 });
 
 // 내 정보 수정
-router.put("/", loginCheck, checkPhoneDuplicate, async (req, res) => {
+router.put("/", checkLogin, checkPhoneDuplicate, async (req, res) => {
    const result = createResult();
 
    try {
-      const user = req.user;
-      const { idx } = user;
+      const { idx } = req.decoded;
       const { name, phone_num, email, pw } = req.body;
 
       validation.validatePassword(pw);
@@ -186,12 +193,11 @@ router.put("/", loginCheck, checkPhoneDuplicate, async (req, res) => {
 });
 
 // 회원 탈퇴
-router.delete("/", loginCheck, async (req, res) => {
+router.delete("/", checkLogin, async (req, res) => {
    const result = createResult();
 
    try {
-      const user = req.user;
-      const idx = user.idx;
+      const { idx } = req.decoded;
 
       const deleteSql = "DELETE FROM homework.user WHERE idx = $1";
       await queryDatabase(deleteSql, [idx]);
