@@ -30,14 +30,6 @@ router.post('/login', checkLogout, createValidationMiddleware(['id', 'pw']), asy
       }
 
       const login = rows[0];
-      // req.session.user = {
-      //    idx: login.idx,
-      //    id: login.id,
-      //    name: login.name,
-      //    phone_num: login.phone_num,
-      //    email: login.email,
-      //    isAdmin: login.isadmin
-      // };
 
       const token = jwt.sign({
          idx: login.idx,

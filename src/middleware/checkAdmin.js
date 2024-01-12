@@ -1,15 +1,28 @@
+const jwt = require('jsonwebtoken');
+
 const checkAdmin = (req, res, next) => {
-   const user = req.session.user;
-   if (!user) {
-      res.status(200).send("세션이 없습니다");
+   // 토큰이 요청 헤더에 있는지 확인
+   const { token } = req.headers;
+   if (!token) {
+      res.status(401).send("인증되지 않은 사용자입니다");
+      return;
    }
-   // 사용자가 관리자 권한을 가지고 있는지 확인
-   if (user && user.isAdmin) {
-      // 권한이 있는 경우 다음 미들웨어로 이동
-      next();
-   } else {
-      // 권한이 없는 경우 에러 응답
-      res.status(403).send("권한이 없습니다." + user.isAdmin);
+
+   try {
+      // 토큰을 검사하고 해독
+      const decodedToken = jwt.verify(token, process.env.SECRET_KEY);
+
+      // 사용자가 관리자 권한을 가지고 있는지 확인
+      if (decodedToken.isAdmin) {
+         next();
+      } else {
+         // 권한이 없는 경우 에러 응답
+         res.status(403).send("권한이 없습니다. " + decodedToken.isAdmin);
+      }
+   } catch (error) {
+      // 토큰이 유효하지 않은 경우 에러 응답
+      res.status(401).send("토큰이 유효하지 않습니다");
    }
 };
-module.exports = checkAdmin
+
+module.exports = checkAdmin;

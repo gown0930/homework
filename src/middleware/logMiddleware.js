@@ -13,6 +13,8 @@ const logMiddleware = async (req, res, next) => {
          const protocol = req.protocol;
          // 요청된 경로
          const path = req.path;
+         // REST 방식 (GET, POST 등)
+         const method = req.method;
          // Query parameters
          const query = req.query;
          // 요청 바디
@@ -26,6 +28,7 @@ const logMiddleware = async (req, res, next) => {
             host,
             protocol,
             path,
+            method,
             query,
             requestBody,
             response: res.locals.response, // 보낸값
@@ -40,10 +43,12 @@ const logMiddleware = async (req, res, next) => {
             console.log("업로드 성공");
          } catch (e) {
             console.error("MongoDB 연결 오류:", e.message);
+            requestInfo.stackTrace = e.stack;//stack trace 추가
          }
       } catch (error) {
          console.error("오류 발생:", error.message);
          console.log(error);
+         requestInfo.stackTrace = error.stack;//stack trace 추가
       }
    });
    next();
