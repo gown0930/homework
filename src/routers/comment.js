@@ -1,6 +1,6 @@
 const router = require("express").Router();
 const { queryDatabase } = require("../modules/connection");
-const loginCheck = require("../middleware/loginCheck")
+const checkLogin = require("../middleware/checkLogin")
 const createResult = require("../modules/result")
 const createValidationMiddleware = require('../middleware/validate');
 
@@ -9,7 +9,7 @@ const createValidationMiddleware = require('../middleware/validate');
 //postIdx body로 받아오기
 
 // 댓글 쓰기
-router.post("/", loginCheck, createValidationMiddleware(['content']), async (req, res) => {
+router.post("/", checkLogin, createValidationMiddleware(['content']), async (req, res) => {
    const result = createResult();
 
    try {
@@ -35,7 +35,7 @@ router.post("/", loginCheck, createValidationMiddleware(['content']), async (req
 });
 
 // 댓글 보기
-router.get("/", loginCheck, async (req, res) => {
+router.get("/", checkLogin, async (req, res) => {
    const result = createResult();
    try {
       const { post_idx } = req.query;
@@ -70,7 +70,7 @@ router.get("/", loginCheck, async (req, res) => {
 
 
 // 댓글 수정
-router.put("/:commentIdx", loginCheck, createValidationMiddleware(['content']), async (req, res) => {
+router.put("/:commentIdx", checkLogin, createValidationMiddleware(['content']), async (req, res) => {
    const commentIdx = req.params.commentIdx;
    const { post_idx, content } = req.body;
    const result = createResult();
@@ -93,7 +93,7 @@ router.put("/:commentIdx", loginCheck, createValidationMiddleware(['content']), 
 });
 
 // 댓글 삭제
-router.delete("/:commentIdx", loginCheck, async (req, res) => {
+router.delete("/:commentIdx", checkLogin, async (req, res) => {
    const commentIdx = req.params.commentIdx;
    const { post_idx } = req.query;
    const result = createResult();

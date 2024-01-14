@@ -12,11 +12,6 @@ const logListApi = require("./src/routers/logList");
 const app = express();
 const port = 8000;
 
-app.use(session({
-   secret: "haeju0930",
-   resave: false,
-   saveUninitialized: true,
-}));
 app.use(express.json());
 
 app.use(logMiddleware);

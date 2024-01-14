@@ -1,7 +1,6 @@
 const router = require("express").Router()
 const { queryDatabase } = require("../modules/connection");
 const createResult = require("../modules/result");
-const logoutCheck = require("../middleware/logoutcheck");
 const createValidationMiddleware = require('../middleware/validate');
 const checkIdDuplicate = require('../middleware/checkIdDuplicate');
 const checkPhoneDuplicate = require('../middleware/checkPhoneDuplicate');

@@ -1,14 +1,14 @@
 const express = require("express");
 const router = express.Router();
 const { queryDatabase } = require("../modules/connection");
-const loginCheck = require("../middleware/loginCheck")
+const checkLogin = require("../middleware/checkLogin")
 const createResult = require("../modules/result")
 const createValidationMiddleware = require('../middleware/validate');
 
 //=========게시글==========
 
 // 게시글 쓰기
-router.post("/", loginCheck, createValidationMiddleware(['title', 'content']), async (req, res) => {
+router.post("/", checkLogin, createValidationMiddleware(['title', 'content']), async (req, res) => {
    const result = createResult();
    const user = req.user;
    const { title, content } = req.body;
@@ -29,7 +29,7 @@ router.post("/", loginCheck, createValidationMiddleware(['title', 'content']), a
 });
 
 // 게시판 보기
-router.get("/", loginCheck, async (req, res) => {
+router.get("/", checkLogin, async (req, res) => {
    const result = createResult();
    try {
       const user = req.user;
@@ -59,7 +59,7 @@ router.get("/", loginCheck, async (req, res) => {
 });
 
 // 게시글 자세히 보기
-router.get("/:idx", loginCheck, async (req, res) => {
+router.get("/:idx", checkLogin, async (req, res) => {
    const result = createResult();
    try {
       const user = req.user;
@@ -90,7 +90,7 @@ router.get("/:idx", loginCheck, async (req, res) => {
 });
 
 // 게시글 수정하기
-router.put("/:idx", loginCheck, createValidationMiddleware(['title', 'content']), async (req, res) => {
+router.put("/:idx", checkLogin, createValidationMiddleware(['title', 'content']), async (req, res) => {
    const result = createResult();
    try {
       const user = req.user;
@@ -116,7 +116,7 @@ router.put("/:idx", loginCheck, createValidationMiddleware(['title', 'content'])
 });
 
 // 게시글 삭제하기
-router.delete("/:idx", loginCheck, async (req, res) => {
+router.delete("/:idx", checkLogin, async (req, res) => {
    const result = createResult();
    try {
       const user = req.user;
