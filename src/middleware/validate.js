@@ -28,7 +28,7 @@ const createValidationMiddleware = (fields, customPatterns = {}) => {
 
       // 예외 처리 및 다음 미들웨어 호출
       if (errors.length > 0) {
-         res.status(400).json({ errors });
+         res.status(400).send({ errors });
       } else {
          next();
       }

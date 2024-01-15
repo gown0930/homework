@@ -11,6 +11,9 @@ const checkLogout = require("../middleware/checkLogout")
 const { addToBlacklist } = require("../modules/blackList");
 const jwt = require("jsonwebtoken")
 
+const redis = require("redis").createClient()
+redis.connect();
+
 //===========로그인 & 회원가입 ===============
 // 로그인
 router.post('/login', checkLogout, createValidationMiddleware(['id', 'pw']), async (req, res, next) => {
@@ -30,6 +33,8 @@ router.post('/login', checkLogout, createValidationMiddleware(['id', 'pw']), asy
 
       const login = rows[0];
 
+      await redis.SADD(`countLogin`, login.id)
+      console.log("추가됨")
       const token = jwt.sign({
          idx: login.idx,
          id: login.id,
@@ -41,9 +46,11 @@ router.post('/login', checkLogout, createValidationMiddleware(['id', 'pw']), asy
       }, process.env.SECRET_KEY, {
          issuer: "haeju",
          expiresIn: "30m"
-      })
-      result.data.token = token
-
+      });
+      result.data.token = token;
+      const count = await redis.SCARD(`countLogin`);
+      result.data.count = count;
+      console.log(count)
       res.locals.response = result;
       res.status(200).send(result);
    } catch (error) {

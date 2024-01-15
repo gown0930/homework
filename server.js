@@ -1,5 +1,4 @@
 const express = require("express");
-const session = require("express-session");
 require("dotenv").config()
 const logMiddleware = require('./src/middleware/logMiddleware');
 const createResult = require("./src/modules/result");
@@ -15,6 +14,8 @@ const port = 8000;
 app.use(express.json());
 
 app.use(logMiddleware);
+
+
 
 app.use("/account", accountApi);
 app.use("/post", postApi);

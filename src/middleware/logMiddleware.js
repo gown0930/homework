@@ -6,7 +6,7 @@ const logMiddleware = async (req, res, next) => {
          // 클라이언트의 IP 주소
          const clientIP = req.ip || req.connection.remoteAddress;
          // userId
-         const userId = req.session.user ? req.session.user.id : null;
+         const userId = req.decoded ? req.decoded.id : null;
          // 클라이언트가 요청한 호스트
          const host = req.get('host');
          // 프로토콜 (HTTP 또는 HTTPS)
