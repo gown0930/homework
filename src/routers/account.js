@@ -11,8 +11,7 @@ const checkLogout = require("../middleware/checkLogout")
 const { addToBlacklist } = require("../modules/blackList");
 const jwt = require("jsonwebtoken")
 
-const redis = require("redis").createClient()
-redis.connect();
+const redis = require("redis").createClient();
 
 //===========로그인 & 회원가입 ===============
 // 로그인
@@ -21,6 +20,7 @@ router.post('/login', checkLogout, createValidationMiddleware(['id', 'pw']), asy
    const result = createResult();
 
    try {
+      await redis.connect();
       // 로그인 처리
       const sql = `SELECT * FROM homework.user WHERE id = $1 AND password = $2`;
       const rows = await queryDatabase(sql, [id, pw]);
@@ -49,12 +49,14 @@ router.post('/login', checkLogout, createValidationMiddleware(['id', 'pw']), asy
       });
       result.data.token = token;
       const count = await redis.SCARD(`countLogin`);
-      result.data.count = count;
+      result.data.count = `누적 접속자 수: ${count}`;
       console.log(count)
       res.locals.response = result;
       res.status(200).send(result);
    } catch (error) {
       next(error);
+   } finally {
+      redis.disconnect()
    }
 });
 

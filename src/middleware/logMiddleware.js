@@ -21,7 +21,7 @@ const logMiddleware = async (req, res, next) => {
          const requestBody = req.body;
          //오류 로그 출력
          const status = res.locals.error ? res.locals.error.statusCode : res.statusCode;
-         const stackTrace = res.locals.error ? res.locals.error.stackTrace : null;
+         const stackTrace = res.locals.error ? res.locals.error.stack : null;
          const message = res.locals.error ? res.locals.error.message : null;
 
          const requestInfo = {
