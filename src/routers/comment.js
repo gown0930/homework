@@ -9,19 +9,18 @@ const createValidationMiddleware = require('../middleware/validate');
 //postIdx body로 받아오기
 
 // 댓글 쓰기
-router.post("/", checkLogin, createValidationMiddleware(['content']), async (req, res) => {
+router.post("/", checkLogin, createValidationMiddleware(['content']), async (req, res, next) => {
    const result = createResult();
 
    try {
-      const user = req.user;
+      const { idx } = req.decoded;
       const { post_idx, content } = req.body;
-      const user_idx = user.idx;
 
       validation.validateContent(content);
       const addCommentQuery = "INSERT INTO homework.comment (comment, user_idx, post_idx) VALUES ($1, $2, $3) RETURNING *";
 
       // 댓글 작성 쿼리 실행
-      const { rows: addCommentResult } = await queryDatabase(addCommentQuery, [content, user_idx, post_idx]);
+      const { rows: addCommentResult } = await queryDatabase(addCommentQuery, [content, idx, post_idx]);
 
       if (!addCommentResult || addCommentResult.length === 0) {
          return res.status(500).send(createResult("댓글 작성 중 에러가 발생하였습니다."));
@@ -35,7 +34,7 @@ router.post("/", checkLogin, createValidationMiddleware(['content']), async (req
 });
 
 // 댓글 보기
-router.get("/", checkLogin, async (req, res) => {
+router.get("/", checkLogin, async (req, res, next) => {
    const result = createResult();
    try {
       const { post_idx } = req.query;
@@ -70,18 +69,18 @@ router.get("/", checkLogin, async (req, res) => {
 
 
 // 댓글 수정
-router.put("/:commentIdx", checkLogin, createValidationMiddleware(['content']), async (req, res) => {
+router.put("/:commentIdx", checkLogin, createValidationMiddleware(['content']), async (req, res, next) => {
    const commentIdx = req.params.commentIdx;
    const { post_idx, content } = req.body;
    const result = createResult();
-
+   const { idx } = req.decoded;
    try {
       const user = req.user;
       validation.validateContent(content);
       const updateCommentQuery = "UPDATE homework.comment SET comment = $1, created_at = CURRENT_TIMESTAMP WHERE idx = $2 AND user_idx = $3 AND post_idx = $4";
 
       // 댓글 수정 쿼리 실행
-      const { rowCount } = await queryDatabase(updateCommentQuery, [content, commentIdx, user.idx, post_idx]);
+      const { rowCount } = await queryDatabase(updateCommentQuery, [content, commentIdx, idx, post_idx]);
 
       if (rowCount === 0) return res.status(403).send(createResult("댓글을 수정할 수 있는 권한이 없거나 댓글이 존재하지 않습니다."));
       res.locals.response = result;
@@ -93,17 +92,18 @@ router.put("/:commentIdx", checkLogin, createValidationMiddleware(['content']), 
 });
 
 // 댓글 삭제
-router.delete("/:commentIdx", checkLogin, async (req, res) => {
+router.delete("/:commentIdx", checkLogin, async (req, res, next) => {
    const commentIdx = req.params.commentIdx;
    const { post_idx } = req.query;
    const result = createResult();
+   const { idx } = req.decoded;
 
    try {
       const user = req.user;
       const deleteCommentQuery = "DELETE FROM homework.comment WHERE idx = $1 AND user_idx = $2 AND post_idx = $3";
 
       // 댓글 삭제 쿼리 실행
-      const { rowCount } = await queryDatabase(deleteCommentQuery, [commentIdx, user.idx, post_idx]);
+      const { rowCount } = await queryDatabase(deleteCommentQuery, [commentIdx, idx, post_idx]);
 
       if (rowCount === 0) throw { status: 500, message: "댓글 삭제에 실패하였습니다. 권한이 없거나 댓글을 찾을 수 없습니다." };
       res.locals.response = result;

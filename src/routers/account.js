@@ -61,7 +61,7 @@ router.post('/login', checkLogout, createValidationMiddleware(['id', 'pw']), asy
 });
 
 // 로그아웃
-router.post("/logout", (req, res) => {
+router.post("/logout", (req, res, next) => {
    const result = createResult();
 
    try {
@@ -74,8 +74,7 @@ router.post("/logout", (req, res) => {
       result.message = '로그아웃이 완료되었습니다.';
       res.status(200).json(result);
    } catch (error) {
-      console.error(error);
-      res.status(500).json({ success: false, message: '서버 에러' });
+      next(error)
    }
 });
 
@@ -102,7 +101,7 @@ router.post("/signup",
    });
 
 // 아이디 찾기
-router.get("/find-id", checkLogout, createValidationMiddleware(['name', 'phone_num', 'email']), async (req, res) => {
+router.get("/find-id", checkLogout, createValidationMiddleware(['name', 'phone_num', 'email']), async (req, res, next) => {
    const { name, phone_num, email } = req.query;
    const result = createResult();
 
@@ -127,7 +126,7 @@ router.get("/find-id", checkLogout, createValidationMiddleware(['name', 'phone_n
 });
 
 // 비밀번호 찾기
-router.get("/find-pw", checkLogout, createValidationMiddleware(['id', 'name', 'phone_num', 'email']), async (req, res) => {
+router.get("/find-pw", checkLogout, createValidationMiddleware(['id', 'name', 'phone_num', 'email']), async (req, res, next) => {
    const { id, name, phone_num, email } = req.query;
    const result = createResult();
 
@@ -149,19 +148,25 @@ router.get("/find-pw", checkLogout, createValidationMiddleware(['id', 'name', 'p
    }
 });
 
-
 //============내 정보================
 // 내 정보 보기
-router.get("/", checkLogin, async (req, res) => {
+router.get("/", checkLogin, async (req, res, next) => {
    const result = createResult();
    try {
-      const { id, name, phone_num, email } = req.decoded;
-      result.data = {
-         id,
-         name,
-         phone_num,
-         email,
-      };
+      const { idx } = req.decoded;
+
+      // 사용자 정보를 조회하는 쿼리
+      const getUserInfoQuery = `
+         SELECT * FROM homework.user
+         WHERE idx = $1
+      `;
+      // queryDatabase 함수를 사용하여 쿼리 실행
+      const userInfo = await queryDatabase(getUserInfoQuery, [idx]);
+
+      // 조회된 사용자 정보를 결과에 추가
+      result.data = userInfo;
+
+      // 응답 전송
       res.locals.response = result;
       res.status(200).send(result);
    } catch (error) {
@@ -170,30 +175,29 @@ router.get("/", checkLogin, async (req, res) => {
 });
 
 // 내 정보 수정
-router.put("/", checkLogin, checkPhoneDuplicate, async (req, res) => {
-   const result = createResult();
+router.put("/",
+   checkLogin,
+   checkPhoneDuplicate,
+   createValidationMiddleware(['pw', 'name', 'phone_num', 'email']),
+   async (req, res, next) => {
+      const result = createResult();
 
-   try {
-      const { idx } = req.decoded;
-      const { name, phone_num, email, pw } = req.body;
+      try {
+         const { idx } = req.decoded;
+         const { name, phone_num, email, pw } = req.body;
 
-      validation.validatePassword(pw);
-      validation.validatePhoneNumber(phone_num);
-      validation.validateEmail(email);
-      validation.validateName(name);
-
-      // DB 통신 - 사용자 정보 수정
-      const updateUserSql = "UPDATE homework.user SET password = $1, phone_num = $2, email = $3, name = $4 WHERE idx = $5";
-      await queryDatabase(updateUserSql, [pw, phone_num, email, name, idx]);
-      res.locals.response = result;
-      return res.status(200).send(result);
-   } catch (error) {
-      next(error);
-   }
-});
+         // DB 통신 - 사용자 정보 수정
+         const updateUserSql = "UPDATE homework.user SET password = $1, phone_num = $2, email = $3, name = $4 WHERE idx = $5";
+         await queryDatabase(updateUserSql, [pw, phone_num, email, name, idx]);
+         res.locals.response = result;
+         return res.status(200).send(result);
+      } catch (error) {
+         next(error);
+      }
+   });
 
 // 회원 탈퇴
-router.delete("/", checkLogin, async (req, res) => {
+router.delete("/", checkLogin, async (req, res, next) => {
    const result = createResult();
 
    try {
