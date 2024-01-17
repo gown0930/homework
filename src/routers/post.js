@@ -5,6 +5,7 @@ const checkLogin = require("../middleware/checkLogin")
 const createResult = require("../modules/result")
 const createValidationMiddleware = require('../middleware/validate');
 
+const redis = require("redis").createClient();
 //=========게시글==========
 
 // 게시글 쓰기
@@ -59,7 +60,19 @@ router.get("/", checkLogin, async (req, res, next) => {
 router.get("/search", checkLogin, async (req, res, next) => {
    const result = createResult();
    try {
+      await redis.connect();
       const { title } = req.body;
+
+      const timestamp = Date.now();
+      console.log(timestamp + "시간시간신간!!!!!!!!!!")
+      redis.ZADD('recent_search', {
+         score: timestamp,
+         value: title
+      }, function (err) {
+         if (err) {
+            console.log(error);
+         }
+      });
 
       const getPostQuery = `
          SELECT 
@@ -81,8 +94,28 @@ router.get("/search", checkLogin, async (req, res, next) => {
       res.status(200).send(result);
    } catch (error) {
       next(error);
+   } finally {
+      redis.disconnect()
    }
 });
+
+router.get("/recent-search", checkLogin, async (req, res, next) => {
+   const result = createResult();
+   try {
+      await redis.connect()
+      const numMembersToPop = 5; // 가져올 멤버의 개수
+      const poppedMembers = await redis.ZRANGE('recent_search', 0, - 1, 'WITHSCORES');
+      const reversedMembers = poppedMembers.reverse().slice(0, 5);
+      console.log(reversedMembers);
+      result.data.count = reversedMembers
+      res.locals.response = result;
+      res.status(200).send(result);
+   } catch (err) {
+      next(err)
+   } finally {
+      redis.disconnect()
+   }
+})
 
 // 게시글 자세히 보기
 router.get("/:idx", checkLogin, async (req, res, next) => {
