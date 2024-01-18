@@ -25,7 +25,6 @@ router.post('/login', checkLogout, createValidationMiddleware(['id', 'pw']), asy
       const sql = `SELECT * FROM homework.user WHERE id = $1 AND password = $2`;
       const rows = await queryDatabase(sql, [id, pw]);
 
-
       if (!rows || rows.length === 0) {
          const error = new Error('아이디 또는 비밀번호가 일치하지 않습니다.');
          error.status = 401;
