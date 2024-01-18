@@ -27,8 +27,9 @@ router.post('/login', checkLogout, createValidationMiddleware(['id', 'pw']), asy
 
 
       if (!rows || rows.length === 0) {
-         return res.status(401).send(createResult('아이디 또는 비밀번호가 일치하지 않습니다.'));
-         //401 : 클라이언트가 인증되지 않았거나, 인증 정보가 부족하거나 잘못되었을 때 
+         const error = new Error('아이디 또는 비밀번호가 일치하지 않습니다.');
+         error.status = 401;
+         throw error;
       }
 
       const login = rows[0];

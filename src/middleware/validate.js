@@ -12,27 +12,35 @@ const defaultValidationPatterns = {
 
 const createValidationMiddleware = (fields, customPatterns = {}) => {
    return (req, res, next) => {
-      const errors = [];
+      try {
+         const errors = [];
 
-      fields.forEach((field) => {
-         const pattern = customPatterns[field] || defaultValidationPatterns[field];
-         const value = req.body[field] || req.query[field] || req.params[field];
+         fields.forEach((field) => {
+            const pattern = customPatterns[field] || defaultValidationPatterns[field];
+            const value = req.body[field] || req.query[field] || req.params[field];
 
-         // Check for empty, null, or undefined values
-         if (!value) {
-            errors.push(`${field} 값이 비어있습니다`);
-         } else if (pattern && !pattern.test(value)) {
-            errors.push(`${field} 형식이 올바르지 않습니다`);
+            if (!value) {
+               errors.push(`${field} 값이 비어있습니다`);
+            } else if (pattern && !pattern.test(value)) {
+               errors.push(`${field} 형식이 올바르지 않습니다`);
+            }
+         });
+
+         if (errors.length > 0) {
+            const validationError = new Error(`Validation Error: ${errors.join(', ')}`);
+            validationError.status = 400; // 상태 코드 추가
+            // 여기서 에러를 발생시키고 에러 핸들러로 전달
+            throw validationError;
          }
-      });
 
-      // 예외 처리 및 다음 미들웨어 호출
-      if (errors.length > 0) {
-         res.status(400).send({ errors });
-      } else {
+         // 유효성 검사 통과 시 다음 미들웨어 호출
          next();
+      } catch (error) {
+         // 다음 미들웨어로 에러 전파
+         next(error);
       }
    };
 };
+
 
 module.exports = createValidationMiddleware;

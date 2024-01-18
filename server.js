@@ -25,10 +25,10 @@ app.use("/comment", commentApi);
 app.use("/logList", logListApi);
 
 // error handler
-app.use((err, req, res) => {
+app.use((err, req, res, next) => {
    console.error(err.stack);
-   res.status(err.status || 500).send(createResult(err.message || '에러가 발생했습니다.'));
    res.locals.error = err;
+   res.status(err.status || 500).send(createResult(err.message || '에러가 발생했습니다.'));
 });
 // cron job 설정 (매 1분에 실행하는거 : '*/1 * * * *' )
 cron.schedule('0 * * * *', async () => {

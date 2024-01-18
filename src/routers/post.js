@@ -99,6 +99,7 @@ router.get("/search", checkLogin, async (req, res, next) => {
    }
 });
 
+//최근 검색어 5개 가져오기
 router.get("/recent-search", checkLogin, async (req, res, next) => {
    const result = createResult();
    try {

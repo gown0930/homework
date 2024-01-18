@@ -20,9 +20,16 @@ const logMiddleware = async (req, res, next) => {
          // 요청 바디
          const requestBody = req.body;
          //오류 로그 출력
-         const status = res.locals.error ? res.locals.error.statusCode : res.statusCode;
+         const status = res.locals.error ? res.locals.error.status : res.statusCode;
          const stackTrace = res.locals.error ? res.locals.error.stack : null;
          const message = res.locals.error ? res.locals.error.message : null;
+
+         let clientErrorInfo = null;
+         if (status >= 400 && status < 600 && !message) {
+            const errors = res.locals.error ? res.locals.error.errors : null;
+            console.log('Client Error:', errors);
+            clientErrorInfo = { errors: errors || "Unknown client error" };
+         }
 
          const requestInfo = {
             clientIP,
@@ -37,7 +44,8 @@ const logMiddleware = async (req, res, next) => {
             timestamp: new Date(),
             status,
             stackTrace,
-            message
+            message,
+            clientErrorInfo
          };
          console.log(requestInfo);
 
