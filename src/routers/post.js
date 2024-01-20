@@ -57,14 +57,23 @@ router.get("/", checkLogin, async (req, res, next) => {
 });
 
 // 제목으로 검색하기
-router.get("/search", checkLogin, async (req, res, next) => {
+router.get("/search", checkLogin, createValidationMiddleware(['title']), async (req, res, next) => {
    const result = createResult();
    try {
       await redis.connect();
       const { title } = req.body;
 
       const timestamp = Date.now();
-      console.log(timestamp + "시간시간신간!!!!!!!!!!")
+      console.log(timestamp + "시간시간신간!!!!!!!!!!");
+
+      const zaddParams = {
+         score: timestamp,
+         value: title
+      };
+
+      console.log("score type:", typeof zaddParams.score);
+      console.log("value type:", typeof zaddParams.value);
+
       redis.ZADD('recent_search', {
          score: timestamp,
          value: title
@@ -73,6 +82,9 @@ router.get("/search", checkLogin, async (req, res, next) => {
             console.log(error);
          }
       });
+
+      // Redis에 expire time 설정
+      await redis.EXPIRE('recent_search', 86400);
 
       const getPostQuery = `
          SELECT 

@@ -12,11 +12,11 @@ const checkLogout = (req, res, next) => {
       }
       if (token) {
          console.log("토큰" + token)
-         throw new Error("token")
+         throw new Error("token is already Exist")
       }
       next()
    } catch (err) {
-      if (err.message === "token") {
+      if (err.message === "token is already Exist") {
          result.message = "이미 로그인이 되어있습니다.";
       } else if (err.message === "jwt expired") {
          result.message = "토큰이 만료되었습니다.";

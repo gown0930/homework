@@ -13,16 +13,15 @@ const checkLogout = (req, res, next) => {
          error.status = 401;
          throw error;
       }
-      if (token) {
-         console.log("토큰" + token);
-         const error = new Error("token is already Exist");
+      if (!token) {
+         const error = new Error("no token");
          error.status = 400;
          throw error;
       }
       next(); // 에러가 발생하지 않으면 다음 미들웨어로 이동
    } catch (err) {
-      if (err.message === "token is already Exist") {
-         result.message = "이미 로그인이 되어있습니다.";
+      if (err.message === "no token") {
+         result.message = "로그인이 필요합니다";
       } else if (err.message === "jwt expired") {
          result.message = "토큰이 만료되었습니다.";
       } else if (err.message === "invalid token") {
@@ -33,7 +32,7 @@ const checkLogout = (req, res, next) => {
          result.message = err.message;
       }
 
-      next(err); // 에러를 다음 미들웨어로 전달
+      res.send(result)
    }
 }
 

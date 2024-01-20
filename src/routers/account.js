@@ -48,6 +48,10 @@ router.post('/login', checkLogout, createValidationMiddleware(['id', 'pw']), asy
          expiresIn: "30m"
       });
       result.data.token = token;
+
+      // Redis에 expire time 설정 넉넉하게 2시간
+      await redis.EXPIRE(`countLogin`, 7200);
+
       const count = await redis.SCARD(`countLogin`);
       result.data.count = `누적 접속자 수: ${count}`;
       console.log(count)
