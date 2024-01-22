@@ -1,5 +1,5 @@
 const { isBlacklisted } = require("../modules/blackList");
-
+const jwt = require("jsonwebtoken");
 const checkLogout = (req, res, next) => {
    const { token } = req.headers
    const result = {
@@ -7,12 +7,12 @@ const checkLogout = (req, res, next) => {
       message: ""
    }
    try {
-      if (isBlacklisted(token)) {
-         throw new Error("blacklisted token");
-      }
       if (token) {
          console.log("토큰" + token)
          throw new Error("token is already Exist")
+      }
+      if (isBlacklisted(token)) {
+         throw new Error("blacklisted token");
       }
       next()
    } catch (err) {

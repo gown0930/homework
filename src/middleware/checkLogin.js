@@ -1,5 +1,5 @@
 const { isBlacklisted } = require("../modules/blackList");
-
+const jwt = require("jsonwebtoken");
 const checkLogout = (req, res, next) => {
    const { token } = req.headers;
    const result = {
@@ -18,6 +18,7 @@ const checkLogout = (req, res, next) => {
          error.status = 400;
          throw error;
       }
+      req.decoded = jwt.verify(token, process.env.SECRET_KEY)
       next(); // 에러가 발생하지 않으면 다음 미들웨어로 이동
    } catch (err) {
       if (err.message === "no token") {

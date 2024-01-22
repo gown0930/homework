@@ -37,8 +37,7 @@ const logMiddleware = async (req, res, next) => {
             timestamp: new Date(),
             status,
             stackTrace,
-            message,
-            clientErrorInfo
+            message
          };
          console.log(requestInfo);
 

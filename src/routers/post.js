@@ -6,21 +6,39 @@ const createResult = require("../modules/result")
 const createValidationMiddleware = require('../middleware/validate');
 
 const redis = require("redis").createClient();
-//=========게시글==========
 
-// 게시글 쓰기
-router.post("/", checkLogin, createValidationMiddleware(['title', 'content']), async (req, res, next) => {
+const multer = require('multer');
+const path = require('path');
+//=========게시글==========
+const uploadDir = path.join(__dirname, '../../uploads');
+const storage = multer.diskStorage({
+   destination: (req, file, cb) => {
+      cb(null, uploadDir);
+   },
+   filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const fileExtension = path.extname(file.originalname);
+      cb(null, file.fieldname + '-' + uniqueSuffix + fileExtension);
+   },
+});
+
+const upload = multer({ storage });
+
+// 게시글 쓰기 및 이미지 업로드 라우트
+router.post("/", checkLogin, upload.single('image'), createValidationMiddleware(['title', 'content']), async (req, res, next) => {
    const result = createResult();
    const { idx } = req.decoded;
    const { title, content } = req.body;
+
    try {
-
-
-
-      const saveSql = "INSERT INTO homework.post (title, content, user_idx) VALUES ($1, $2, $3)";
+      // 이미지 파일이 있는지 확인
+      const imageUrl = req.file ? req.file.filename : null;
+      console.log(imageUrl + "이미지 링크")
+      const saveSql = "INSERT INTO homework.post (title, content, user_idx, image_url) VALUES ($1, $2, $3, $4)";
 
       // 게시글 작성 쿼리 실행
-      await queryDatabase(saveSql, [title, content, idx]);
+      await queryDatabase(saveSql, [title, content, idx, imageUrl]);
+
       res.locals.response = result;
       return res.status(200).send(result);
    } catch (error) {

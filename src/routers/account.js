@@ -9,10 +9,9 @@ const checkPasswordMatch = require('../middleware/checkPasswordMatch');
 const checkLogin = require("../middleware/checkLogin")
 const checkLogout = require("../middleware/checkLogout")
 const { addToBlacklist } = require("../modules/blackList");
-const jwt = require("jsonwebtoken")
 
 const redis = require("redis").createClient();
-
+const jwt = require("jsonwebtoken");
 //===========로그인 & 회원가입 ===============
 // 로그인
 router.post('/login', checkLogout, createValidationMiddleware(['id', 'pw']), async (req, res, next) => {
