@@ -20,7 +20,6 @@ router.post('/login', checkLogout, createValidationMiddleware(['id', 'pw']), asy
    const result = createResult();
 
    try {
-      await redis.connect();
       // 로그인 처리
       const sql = `SELECT * FROM homework.user WHERE id = $1 AND password = $2`;
       const rows = await queryDatabase(sql, [id, pw]);
@@ -32,6 +31,8 @@ router.post('/login', checkLogout, createValidationMiddleware(['id', 'pw']), asy
       }
 
       const login = rows[0];
+
+      await redis.connect();
 
       await redis.SADD(`countLogin`, login.id)
       console.log("추가됨")

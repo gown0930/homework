@@ -59,22 +59,15 @@ router.get("/", checkLogin, async (req, res, next) => {
 // 제목으로 검색하기
 router.get("/search", checkLogin, createValidationMiddleware(['title']), async (req, res, next) => {
    const result = createResult();
+   const { idx } = req.decoded;
    try {
       await redis.connect();
       const { title } = req.body;
 
       const timestamp = Date.now();
-      console.log(timestamp + "시간시간신간!!!!!!!!!!");
 
-      const zaddParams = {
-         score: timestamp,
-         value: title
-      };
 
-      console.log("score type:", typeof zaddParams.score);
-      console.log("value type:", typeof zaddParams.value);
-
-      redis.ZADD('recent_search', {
+      redis.ZADD(`recent_search${idx}`, {
          score: timestamp,
          value: title
       }, function (err) {
@@ -84,8 +77,9 @@ router.get("/search", checkLogin, createValidationMiddleware(['title']), async (
       });
 
       // Redis에 expire time 설정
-      await redis.EXPIRE('recent_search', 86400);
+      await redis.EXPIRE(`recent_search${idx}`, 86400);
 
+      //출력 순서 바꾸기
       const getPostQuery = `
          SELECT 
             p.title, 
@@ -114,10 +108,11 @@ router.get("/search", checkLogin, createValidationMiddleware(['title']), async (
 //최근 검색어 5개 가져오기
 router.get("/recent-search", checkLogin, async (req, res, next) => {
    const result = createResult();
+   const { idx } = req.decoded;
    try {
       await redis.connect()
       const numMembersToPop = 5; // 가져올 멤버의 개수
-      const poppedMembers = await redis.ZRANGE('recent_search', 0, - 1, 'WITHSCORES');
+      const poppedMembers = await redis.ZRANGE(`recent_search${idx}`, 0, - 1, 'WITHSCORES');//recent_search{idx}로 해주고, 변수 값 처리
       const reversedMembers = poppedMembers.reverse().slice(0, 5);
       console.log(reversedMembers);
       result.data.count = reversedMembers

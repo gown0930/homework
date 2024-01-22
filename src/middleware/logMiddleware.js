@@ -24,13 +24,6 @@ const logMiddleware = async (req, res, next) => {
          const stackTrace = res.locals.error ? res.locals.error.stack : null;
          const message = res.locals.error ? res.locals.error.message : null;
 
-         let clientErrorInfo = null;
-         if (status >= 400 && status < 600 && !message) {
-            const errors = res.locals.error ? res.locals.error.errors : null;
-            console.log('Client Error:', errors);
-            clientErrorInfo = { errors: errors || "Unknown client error" };
-         }
-
          const requestInfo = {
             clientIP,
             userId,
