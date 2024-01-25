@@ -33,7 +33,7 @@ router.post('/login', checkLogout, createValidationMiddleware(['id', 'pw']), asy
 
       await redis.connect();
 
-      await redis.SADD(`countLogin`, login.id)
+      await redis.SADD(`countLogin`, login.idx)
       console.log("추가됨")
       const token = jwt.sign({
          idx: login.idx,
@@ -51,10 +51,23 @@ router.post('/login', checkLogout, createValidationMiddleware(['id', 'pw']), asy
 
       // Redis에 expire time 설정 넉넉하게 2시간
       await redis.EXPIRE(`countLogin`, 7200);
+      res.locals.response = result;
+      res.status(200).send(result);
+   } catch (error) {
+      next(error);
+   } finally {
+      redis.disconnect()
+   }
+});
 
+// 누적 접속자 수 가져오기
+router.get('/loginCount', async (req, res, next) => {
+   const result = createResult();
+
+   try {
+      await redis.connect();
       const count = await redis.SCARD(`countLogin`);
       result.data.count = `누적 접속자 수: ${count}`;
-      console.log(count)
       res.locals.response = result;
       res.status(200).send(result);
    } catch (error) {

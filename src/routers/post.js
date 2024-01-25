@@ -93,6 +93,12 @@ router.get("/search", checkLogin, createValidationMiddleware(['title']), async (
             console.log(error);
          }
       });
+      const setSize = await redis.ZCARD(`recent_search${idx}`);
+      const maxSize = 5;
+      if (setSize > maxSize) {
+         // ZREMRANGEBYRANK 명령어로 초과한 원소를 제거
+         await redis.ZREMRANGEBYRANK(`recent_search${idx}`, 0, setSize - maxSize - 1);
+      }
 
       // Redis에 expire time 설정
       await redis.EXPIRE(`recent_search${idx}`, 86400);
@@ -110,7 +116,9 @@ router.get("/search", checkLogin, createValidationMiddleware(['title']), async (
             homework.user u ON p.user_idx = u.idx
          WHERE 
              LOWER(p.title) LIKE LOWER($1)
-      `;
+         ORDER BY
+            p.idx DESC;
+         `;
       const posts = await queryDatabase(getPostQuery, [`%${title}%`]);
 
       result.posts = posts;
@@ -131,7 +139,7 @@ router.get("/recent-search", checkLogin, async (req, res, next) => {
       await redis.connect()
       const numMembersToPop = 5; // 가져올 멤버의 개수
       const poppedMembers = await redis.ZRANGE(`recent_search${idx}`, 0, - 1, 'WITHSCORES');//recent_search{idx}로 해주고, 변수 값 처리
-      const reversedMembers = poppedMembers.reverse().slice(0, 5);
+      const reversedMembers = poppedMembers.reverse();
       console.log(reversedMembers);
       result.data.count = reversedMembers
       res.locals.response = result;
