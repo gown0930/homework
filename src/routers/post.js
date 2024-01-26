@@ -9,6 +9,41 @@ const redis = require("redis").createClient();
 
 const multer = require('multer');
 const path = require('path');
+
+const aws = require('aws-sdk');
+const multerS3 = require('multer-s3');
+
+
+const s3 = new aws.S3({
+   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+   region: 'ap-northeast-2',
+   // 다른 설정도 추가할 수 있습니다.
+});
+
+// S3에 업로드할 버킷 이름
+const bucketName = 'haeju-homework';
+
+// multer 설정
+const uploadS3 = multer({
+   storage: multerS3({
+      s3: s3,
+      bucket: bucketName,
+      contentType: multerS3.AUTO_CONTENT_TYPE,
+      key: (req, file, callback) => {
+         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+         const fileExtension = path.extname(file.originalname);
+         const fileName = 'folder/' + uniqueSuffix + fileExtension;
+         callback(null, fileName);
+      },
+      acl: 'public-read'
+   })
+});
+
+
+//const uploadS3 = multer({ storage: storageS3 });
+
+
 //=========게시글==========
 const uploadDir = path.join(__dirname, '../../uploads');
 const storage = multer.diskStorage({
@@ -25,14 +60,15 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // 게시글 쓰기 및 이미지 업로드 라우트
-router.post("/", checkLogin, upload.single('image'), createValidationMiddleware(['title', 'content']), async (req, res, next) => {
+router.post("/", checkLogin, uploadS3.single('image'), createValidationMiddleware(['title', 'content']), async (req, res, next) => {
    const result = createResult();
    const { idx } = req.decoded;
    const { title, content } = req.body;
 
    try {
       // 이미지 파일이 있는지 확인
-      const imageUrl = req.file ? req.file.filename : null;
+      //const imageUrl = req.file ? req.file.filename : null;
+      const imageUrl = req.file ? req.file.location : null;
       console.log(imageUrl + "이미지 링크")
       const saveSql = "INSERT INTO homework.post (title, content, user_idx, image_url) VALUES ($1, $2, $3, $4)";
 

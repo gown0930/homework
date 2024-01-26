@@ -33,7 +33,7 @@ router.post('/login', checkLogout, createValidationMiddleware(['id', 'pw']), asy
 
       await redis.connect();
 
-      await redis.SADD(`countLogin`, login.idx)
+      await redis.SADD(`countLogin`, login.id)
       console.log("추가됨")
       const token = jwt.sign({
          idx: login.idx,
