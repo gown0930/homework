@@ -14,7 +14,7 @@ const aws = require('aws-sdk');
 const multerS3 = require('multer-s3');
 
 
-const s3 = new aws.S3({
+aws.config.update({
    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
    region: 'ap-northeast-2',
@@ -22,6 +22,9 @@ const s3 = new aws.S3({
 
 // S3에 업로드할 버킷 이름
 const bucketName = 'haeju-homework';
+
+// S3 객체 생성
+const s3 = new aws.S3();
 
 // multer 설정
 const uploadS3 = multer({
@@ -69,6 +72,7 @@ router.post("/", checkLogin, uploadS3.single('image'), createValidationMiddlewar
       //const imageUrl = req.file ? req.file.filename : null;
       const imageUrl = req.file ? req.file.location : null;
       console.log(imageUrl + "이미지 링크")
+      console.log(imageUrl.split('/').pop())
       const saveSql = "INSERT INTO homework.post (title, content, user_idx, image_url) VALUES ($1, $2, $3, $4)";
 
       // 게시글 작성 쿼리 실행
@@ -223,7 +227,7 @@ router.put("/:idx", checkLogin, createValidationMiddleware(['title', 'content'])
    const result = createResult();
    try {
       const postIdx = req.params.idx;
-      const { title, content, image } = req.body;
+      const { title, content } = req.body;
       const { idx } = req.decoded;
 
       const updatePostQuery = "UPDATE homework.post SET title = $1, content = $2 WHERE idx = $3 AND user_idx = $4 RETURNING *";
@@ -232,6 +236,51 @@ router.put("/:idx", checkLogin, createValidationMiddleware(['title', 'content'])
       if (updateResults.length === 0) {
          return res.status(403).send(createResult("게시글을 수정할 수 있는 권한이 없거나 게시글이 존재하지 않습니다."));
       }
+      res.locals.response = result;
+      return res.status(200).send(result);
+
+   } catch (error) {
+      next(error);
+   }
+});
+
+// 이미지 수정하기
+router.put("/image/:idx", uploadS3.single('image'), checkLogin, async (req, res, next) => {
+   const result = createResult();
+   try {
+      const postIdx = req.params.idx;
+      const { idx } = req.decoded;
+
+      const imageUrl = req.file ? req.file.location : null;
+      const getPostQuery = "SELECT * FROM homework.post WHERE idx = $1 AND user_idx = $2";
+      const getPostResults = await queryDatabase(getPostQuery, [postIdx, idx]);
+
+      if (getPostResults.length === 0) {
+         return res.status(403).send(createResult("게시글을 수정할 수 있는 권한이 없거나 게시글이 존재하지 않습니다."));
+      }
+
+      const currentImageUrl = getPostResults[0].image_url;
+
+      // 이미지가 존재하면 S3에서 삭제
+      if (currentImageUrl) {
+         const deleteParams = {
+            Bucket: bucketName,
+            Key: currentImageUrl.split('/').pop(), // 이미지 파일명만 추출
+         };
+
+         // S3에서 이미지 삭제
+         await s3.deleteObject(deleteParams).promise();
+         console.log("기존 이미지 삭제:", currentImageUrl);
+      }
+
+      const updatePostQuery = "UPDATE homework.post SET image_url = $1 WHERE idx = $2 AND user_idx = $3 RETURNING *";
+      const updateResults = await queryDatabase(updatePostQuery, [imageUrl, postIdx, idx]);
+
+
+      if (updateResults.length === 0) {
+         return res.status(403).send(createResult("게시글을 수정할 수 있는 권한이 없거나 게시글이 존재하지 않습니다."));
+      }
+
       res.locals.response = result;
       return res.status(200).send(result);
 
