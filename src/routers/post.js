@@ -18,7 +18,6 @@ const s3 = new aws.S3({
    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
    region: 'ap-northeast-2',
-   // 다른 설정도 추가할 수 있습니다.
 });
 
 // S3에 업로드할 버킷 이름
@@ -189,6 +188,7 @@ router.get("/recent-search", checkLogin, async (req, res, next) => {
 
 // 게시글 자세히 보기
 router.get("/:idx", checkLogin, async (req, res, next) => {
+   image_url
    const result = createResult();
    try {
       const postIdx = req.params.idx;
@@ -197,6 +197,7 @@ router.get("/:idx", checkLogin, async (req, res, next) => {
          SELECT 
             p.title, 
             p.content, 
+            p.image_url,
             TO_CHAR(p.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH:MI AM') AS created_at,
             u.id as user_id
          FROM 
@@ -222,11 +223,8 @@ router.put("/:idx", checkLogin, createValidationMiddleware(['title', 'content'])
    const result = createResult();
    try {
       const postIdx = req.params.idx;
-      const { title, content } = req.body;
+      const { title, content, image } = req.body;
       const { idx } = req.decoded;
-
-      validation.validateContent(title);
-      validation.validateContent(content);
 
       const updatePostQuery = "UPDATE homework.post SET title = $1, content = $2 WHERE idx = $3 AND user_idx = $4 RETURNING *";
       const updateResults = await queryDatabase(updatePostQuery, [title, content, postIdx, idx]);
