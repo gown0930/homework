@@ -62,7 +62,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // 게시글 쓰기 및 이미지 업로드 라우트
-router.post("/", checkLogin, uploadS3.single('image'), createValidationMiddleware(['title', 'content']), async (req, res, next) => {
+router.post("/", checkLogin, uploadS3.array('image', 3), createValidationMiddleware(['title', 'content']), async (req, res, next) => {
    const result = createResult();
    const { idx } = req.decoded;
    const { title, content } = req.body;
@@ -70,21 +70,26 @@ router.post("/", checkLogin, uploadS3.single('image'), createValidationMiddlewar
    try {
       // 이미지 파일이 있는지 확인
       //const imageUrl = req.file ? req.file.filename : null;
-      const imageUrl = req.file ? req.file.location : null;
-      console.log(imageUrl + "이미지 링크")
-      console.log(imageUrl.split('/').pop())
-      const saveSql = "INSERT INTO homework.post (title, content, user_idx, image_url) VALUES ($1, $2, $3, $4)";
+      // const imageUrl = req.file ? req.file.location : null;
+      // console.log(imageUrl + "이미지 링크")
+      // console.log(imageUrl.split('/').pop())
+      // const saveSql = "INSERT INTO homework.post (title, content, user_idx, image_url) VALUES ($1, $2, $3, $4)";
 
-      // 게시글 작성 쿼리 실행
-      await queryDatabase(saveSql, [title, content, idx, imageUrl]);
-
+      // // 게시글 작성 쿼리 실행
+      // await queryDatabase(saveSql, [title, content, idx, imageUrl]);
+      const images = req.files; // 배열로 받아옴
+      if (images) {
+         const imageUrls = images.map(file => file.location);
+         console.log(imageUrls); // 이미지 URL들을 출력
+      } else {
+         console.log('No images uploaded'); // 이미지가 업로드되지 않은 경우
+      }
       res.locals.response = result;
       return res.status(200).send(result);
    } catch (error) {
       next(error);
    }
 });
-
 // 게시판 보기
 router.get("/", checkLogin, async (req, res, next) => {
    const result = createResult();
@@ -192,7 +197,7 @@ router.get("/recent-search", checkLogin, async (req, res, next) => {
 
 // 게시글 자세히 보기
 router.get("/:idx", checkLogin, async (req, res, next) => {
-   image_url
+
    const result = createResult();
    try {
       const postIdx = req.params.idx;

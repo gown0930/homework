@@ -170,7 +170,9 @@ router.get("/find-pw", checkLogout, createValidationMiddleware(['id', 'name', 'p
 router.get("/", checkLogin, async (req, res, next) => {
    const result = createResult();
    try {
+      const token = req.headers['token'];
       const { idx } = req.decoded;
+      const storedToken = localStorage.getItem('token');
 
       // 사용자 정보를 조회하는 쿼리
       const getUserInfoQuery = `
