@@ -320,6 +320,7 @@ router.delete("/deleteImage/:idx", uploadS3.array('image', 5), checkLogin, async
       }
 
       const currentImageIdx = getPostResults[0].idx;
+      console.log(image_idx, currentImageIdx)
       const currentImageUrl = getPostResults[0].image_url;
       console.log(currentImageUrl.split('/').pop());
 
@@ -327,10 +328,11 @@ router.delete("/deleteImage/:idx", uploadS3.array('image', 5), checkLogin, async
       const deleteResults = await queryDatabase(deleteImageQuery, [image_idx, idx, post_idx]);
       if (deleteResults.length === 0) return res.status(403).send(createResult("이미지를 삭제할 수 있는 권한이 없거나 이미지가 존재하지 않습니다."));
       // 이미지가 존재하면 S3에서 삭제
-      if (currentImageIdx && currentImageIdx === image_idx) {
+
+      if (currentImageIdx && currentImageIdx == image_idx) {
          const deleteParams = {
             Bucket: bucketName,
-            Key: currentImageUrl.split('/').pop(), // 이미지 파일명만 추출
+            Key: 'folder/' + currentImageUrl.split('/').pop(),
          };
 
          // S3에서 이미지 삭제
@@ -353,10 +355,31 @@ router.delete("/:idx", checkLogin, async (req, res, next) => {
       const postIdx = req.params.idx;
       const { idx } = req.decoded;
 
-      const deletePostQuery = "DELETE FROM homework.post WHERE idx = $1 AND user_idx = $2 RETURNING *";
-      const deleteResults = await queryDatabase(deletePostQuery, [postIdx, idx]);
+      //이미지 지우기
+      const getImageQuery = "DELETE FROM homework.images WHERE post_idx = $1 AND user_idx = $2 RETURNING *";
+      const getImageResults = await queryDatabase(getImageQuery, [postIdx, idx]);
+      if (getImageResults.length != 0) {
+         const deleteImageQuery = "DELETE FROM homework.images WHERE post_idx = $1 AND user_idx = $2 RETURNING *";
+         const deleteImageResults = await queryDatabase(deleteImageQuery, [postIdx, idx]);
 
-      if (deleteResults.length === 0) return res.status(403).send(createResult("게시글을 삭제할 수 있는 권한이 없거나 게시글이 존재하지 않습니다."));
+         if (deleteImageResults.length === 0) return res.status(403).send(createResult("이미지를 삭제할 수 있는 권한이 없거나 이미지가 존재하지 않습니다."));
+      }
+      //댓글 지우기
+      const getCommentQuery = "DELETE FROM homework.comment WHERE post_idx = $1 AND user_idx = $2 RETURNING *";
+      const getCommentResults = await queryDatabase(getCommentQuery, [postIdx, idx]);
+      if (getCommentResults.length != 0) {
+         const deleteCommentQuery = "DELETE FROM homework.comment WHERE post_idx = $1 AND user_idx = $2 RETURNING *";
+         const deleteCommentResults = await queryDatabase(deleteCommentQuery, [postIdx, idx]);
+
+         if (deleteCommentResults.length === 0) return res.status(403).send(createResult("댓글을 삭제할 수 있는 권한이 없거나 댓글이 존재하지 않습니다."));
+
+      }
+
+      const deletePostQuery = "DELETE FROM homework.post WHERE idx = $1 AND user_idx = $2 RETURNING *";
+      const deletePostResults = await queryDatabase(deletePostQuery, [postIdx, idx]);
+
+      if (deletePostResults.length === 0) return res.status(403).send(createResult("게시글을 삭제할 수 있는 권한이 없거나 게시글이 존재하지 않습니다."));
+
       res.locals.response = result;
       return res.status(200).send(result);
 
