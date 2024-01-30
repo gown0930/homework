@@ -68,21 +68,27 @@ router.post("/", checkLogin, uploadS3.array('image', 3), createValidationMiddlew
    const { title, content } = req.body;
 
    try {
-      // 이미지 파일이 있는지 확인
-      //const imageUrl = req.file ? req.file.filename : null;
-      // const imageUrl = req.file ? req.file.location : null;
-      // console.log(imageUrl + "이미지 링크")
-      // console.log(imageUrl.split('/').pop())
-      // const saveSql = "INSERT INTO homework.post (title, content, user_idx, image_url) VALUES ($1, $2, $3, $4)";
+      const savePostSql = "INSERT INTO homework.post (title, content, user_idx) VALUES ($1, $2, $3) RETURNING idx";
+      const postResult = await queryDatabase(savePostSql, [title, content, idx]);
 
-      // // 게시글 작성 쿼리 실행
-      // await queryDatabase(saveSql, [title, content, idx, imageUrl]);
+      const postId = postResult[0].idx;
+
       const images = req.files; // 배열로 받아옴
+
       if (images) {
          const imageUrls = images.map(file => file.location);
          console.log(imageUrls); // 이미지 URL들을 출력
+         // 이미지를 저장하는 쿼리
+         const saveImageSql = "INSERT INTO homework.images (post_idx, image_url, user_idx) VALUES ($1, $2, $3)";
+
+         // 각 이미지 URL을 데이터베이스에 저장
+         for (const imageUrl of imageUrls) {
+            await queryDatabase(saveImageSql, [postId, imageUrl, idx]);
+         }
+
+         console.log('이미지 db저장 성공');
       } else {
-         console.log('No images uploaded'); // 이미지가 업로드되지 않은 경우
+         console.log('이미지 db저장 실패');
       }
       res.locals.response = result;
       return res.status(200).send(result);
