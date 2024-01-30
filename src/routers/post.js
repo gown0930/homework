@@ -21,12 +21,12 @@ aws.config.update({
 });
 
 // S3에 업로드할 버킷 이름
-const bucketName = 'haeju-homework';
+const bucketName = process.env.AWS_BUCKET_NAME;
 
 // S3 객체 생성
 const s3 = new aws.S3();
 
-// multer 설정
+// s3 multer 설정
 const uploadS3 = multer({
    storage: multerS3({
       s3: s3,
@@ -42,11 +42,7 @@ const uploadS3 = multer({
    })
 });
 
-
-//const uploadS3 = multer({ storage: storageS3 });
-
-
-//=========게시글==========
+//서버 업로드
 const uploadDir = path.join(__dirname, '../../uploads');
 const storage = multer.diskStorage({
    destination: (req, file, cb) => {
@@ -61,8 +57,8 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// 게시글 쓰기 및 이미지 업로드
-router.post("/", checkLogin, uploadS3.array('image', 3), createValidationMiddleware(['title', 'content']), async (req, res, next) => {
+// 게시글 쓰기 및 이미지 S3업로드
+router.post("/S3", checkLogin, uploadS3.array('image', 3), createValidationMiddleware(['title', 'content']), async (req, res, next) => {
    const result = createResult();
    const { idx } = req.decoded;
    const { title, content } = req.body;
@@ -96,6 +92,45 @@ router.post("/", checkLogin, uploadS3.array('image', 3), createValidationMiddlew
       next(error);
    }
 });
+
+
+// 게시글 쓰기 및 이미지 서버 업로드
+router.post("/server", checkLogin, upload.array('image', 5), createValidationMiddleware(['title', 'content']), async (req, res, next) => {
+   const result = createResult();
+   const { idx } = req.decoded;
+   const { title, content } = req.body;
+
+   try {
+
+      const savePostSql = "INSERT INTO homework.post (title, content, user_idx) VALUES ($1, $2, $3) RETURNING idx";
+      const postResult = await queryDatabase(savePostSql, [title, content, idx]);
+
+      const postId = postResult[0].idx;
+
+      const images = req.files; // 배열로 받아옴
+      if (images) {
+         const imageUrls = images.map(file => '/uploads/' + file.filename);
+         console.log(imageUrls + " 이미지 링크들");
+         // 이미지를 저장하는 쿼리
+         const saveImageSql = "INSERT INTO homework.images (post_idx, image_url, user_idx) VALUES ($1, $2, $3)";
+
+         // 각 이미지 URL을 데이터베이스에 저장
+         for (const imageUrl of imageUrls) {
+            await queryDatabase(saveImageSql, [postId, imageUrl, idx]);
+         }
+
+         console.log('이미지 db저장 성공');
+      } else {
+         console.log('이미지 db저장 실패');
+      }
+
+      res.locals.response = result;
+      return res.status(200).send(result);
+   } catch (error) {
+      next(error);
+   }
+});
+
 // 게시판 보기
 router.get("/", checkLogin, async (req, res, next) => {
    const result = createResult();
@@ -303,6 +338,7 @@ router.post("/addImage", checkLogin, uploadS3.array('image', 3), async (req, res
       next(error);
    }
 });
+
 //이미지 삭제하기
 router.delete("/deleteImage/:idx", uploadS3.array('image', 5), checkLogin, async (req, res, next) => {
    const result = createResult();
@@ -348,6 +384,7 @@ router.delete("/deleteImage/:idx", uploadS3.array('image', 5), checkLogin, async
       next(error);
    }
 });
+
 // 게시글 삭제하기
 router.delete("/:idx", checkLogin, async (req, res, next) => {
    const result = createResult();
