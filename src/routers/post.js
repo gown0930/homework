@@ -7,71 +7,28 @@ const createValidationMiddleware = require('../middleware/validate');
 
 const redis = require("redis").createClient();
 
-const multer = require('multer');
-const path = require('path');
-
-const aws = require('aws-sdk');
-const multerS3 = require('multer-s3');
-
-
-aws.config.update({
-   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-   region: 'ap-northeast-2',
-});
-
-// S3에 업로드할 버킷 이름
-const bucketName = process.env.AWS_BUCKET_NAME;
-
-// S3 객체 생성
-const s3 = new aws.S3();
-
-// s3 multer 설정
-const uploadS3 = multer({
-   storage: multerS3({
-      s3: s3,
-      bucket: bucketName,
-      contentType: multerS3.AUTO_CONTENT_TYPE,
-      key: (req, file, callback) => {
-         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-         const fileExtension = path.extname(file.originalname);
-         const fileName = 'folder/' + uniqueSuffix + fileExtension;
-         callback(null, fileName);
-      },
-      acl: 'public-read'
-   })
-});
-
-//서버 업로드
-const uploadDir = path.join(__dirname, '../../uploads');
-const storage = multer.diskStorage({
-   destination: (req, file, cb) => {
-      cb(null, uploadDir);
-   },
-   filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      const fileExtension = path.extname(file.originalname);
-      cb(null, file.fieldname + '-' + uniqueSuffix + fileExtension);
-   },
-});
-
-const upload = multer({ storage });
+const uploadS3 = require('../middleware/uploadS3');
+const upload = require('../middleware/uploadServer');
 
 //이미지 s3업로드
 router.post("/imageS3",
    checkLogin,
    uploadS3.array('image', 5),
    async (req, res, next) => {
-      const uploadFiles = req.files;
+      try {
+         const uploadFiles = req.files;
 
-      if (!uploadFiles.length) {
-         return res.status(400).send({ message: "업로드 된 파일이 없습니다" });
-      }
-      return res.status(200).send({
-         data: {
-            files: uploadFiles.map(file => file.location)
+         if (!uploadFiles.length) {
+            return res.status(400).send({ message: "업로드 된 파일이 없습니다" });
          }
-      });
+         return res.status(200).send({
+            data: {
+               files: uploadFiles.map(file => file.location)
+            }
+         });
+      } catch (error) {
+         next(error);
+      }
    });
 
 // 이미지 서버 업로드
@@ -79,16 +36,19 @@ router.post("/imageServer",
    checkLogin,
    upload.array('image', 5),
    async (req, res, next) => {
-
-      const images = req.files; // 배열로 받아옴
-      if (!images.length) {
-         return res.status(400).send({ message: "업로드 된 파일이 없습니다" });
-      }
-      return res.status(200).send({
-         data: {
-            files: images.map(file => '/uploads/' + file.filename)
+      try {
+         const images = req.files; // 배열로 받아옴
+         if (!images.length) {
+            return res.status(400).send({ message: "업로드 된 파일이 없습니다" });
          }
-      });
+         return res.status(200).send({
+            data: {
+               files: images.map(file => '/uploads/' + file.filename)
+            }
+         });
+      } catch (error) {
+         next(error);
+      }
    });
 
 // 게시글 쓰기
@@ -269,7 +229,7 @@ router.get("/:idx", checkLogin, async (req, res, next) => {
    }
 });
 
-// 게시글 수정하기
+// 게시글 및 이미지 수정하기
 router.put("/:idx", checkLogin, createValidationMiddleware(['title', 'content']), async (req, res, next) => {
    const result = createResult();
    try {
@@ -284,8 +244,21 @@ router.put("/:idx", checkLogin, createValidationMiddleware(['title', 'content'])
          return res.status(403).send(createResult("게시글을 수정할 수 있는 권한이 없거나 게시글이 존재하지 않습니다."));
       }
 
-      const deleteImageUrlSql = "DELETE FROM homework.images WHERE post_idx = $1"
-      await queryDatabase(deleteImageUrlSql, [postIdx]);
+      const deleteImageUrlSql = "DELETE FROM homework.images WHERE post_idx = $1 RETURNING *"
+      const getImageUrlResults = await queryDatabase(deleteImageUrlSql, [postIdx]);
+      console.log(getImageUrlResults);
+      for (const imageInfo of getImageUrlResults) {
+         const imageUrlToDelete = imageInfo.image_url;
+
+         const deleteParams = {
+            Bucket: bucketName,
+            Key: imageUrlToDelete.split('/').pop(),
+         };
+
+         // S3에서 이미지 삭제
+         await s3.deleteObject(deleteParams).promise();
+         console.log("이미지 삭제 완료:", imageUrlToDelete);
+      }
       if (imageUrls.length) {
          const saveImageSql = "INSERT INTO homework.images (post_idx, image_url, user_idx) VALUES ($1, $2, $3)";
          for (const imageUrl of imageUrls) {
@@ -293,89 +266,6 @@ router.put("/:idx", checkLogin, createValidationMiddleware(['title', 'content'])
          }
          console.log('이미지 db저장 성공');
       }
-      res.locals.response = result;
-      return res.status(200).send(result);
-
-   } catch (error) {
-      next(error);
-   }
-});
-
-//이미지 추가하기
-router.post("/addImage", checkLogin, uploadS3.array('image', 3), async (req, res, next) => {
-   const result = createResult();
-   const { post_idx } = req.body;
-   const { idx } = req.decoded;
-
-   try {
-      const getPostQuery = "SELECT * FROM homework.post WHERE idx = $1 AND user_idx = $2";
-      const getPostResults = await queryDatabase(getPostQuery, [post_idx, idx]);
-
-      if (getPostResults.length === 0) {
-         return res.status(403).send(createResult("게시글을 수정할 수 있는 권한이 없거나 게시글이 존재하지 않습니다."));
-      }
-      const images = req.files; // 배열로 받아옴
-
-      if (images) {
-         const imageUrls = images.map(file => file.location);
-         console.log(imageUrls); // 이미지 URL들을 출력
-         // 이미지를 저장하는 쿼리
-         const saveImageSql = "INSERT INTO homework.images (post_idx, image_url, user_idx) VALUES ($1, $2, $3)";
-
-         // 각 이미지 URL을 데이터베이스에 저장
-         for (const imageUrl of imageUrls) {
-            await queryDatabase(saveImageSql, [post_idx, imageUrl, idx]);
-         }
-
-         console.log('이미지 db저장 성공');
-      } else {
-         console.log('이미지 db저장 실패');
-      }
-      res.locals.response = result;
-      return res.status(200).send(result);
-   } catch (error) {
-      next(error);
-   }
-});
-
-//이미지 삭제하기
-router.delete("/deleteImage/:idx", uploadS3.array('image', 5), checkLogin, async (req, res, next) => {
-   const result = createResult();
-   try {
-      const image_idx = req.params.idx;
-      const { post_idx } = req.body;
-      const { idx } = req.decoded;
-
-      console.log(idx, post_idx)
-      const getImageQuery = "SELECT * FROM homework.images WHERE post_idx = $1 AND user_idx = $2";
-      const getPostResults = await queryDatabase(getImageQuery, [post_idx, idx]);
-
-      if (getPostResults.length === 0) {
-         return res.status(403).send(createResult("게시글을 수정할 수 있는 권한이 없거나 게시글이 존재하지 않습니다."));
-      }
-
-      const currentImageIdx = getPostResults[0].idx;
-      console.log(image_idx, currentImageIdx)
-      const currentImageUrl = getPostResults[0].image_url;
-      console.log(currentImageUrl.split('/').pop());
-
-      const deleteImageQuery = "DELETE FROM homework.images WHERE idx = $1 AND user_idx = $2 AND post_idx = $3 RETURNING *";
-      const deleteResults = await queryDatabase(deleteImageQuery, [image_idx, idx, post_idx]);
-      if (deleteResults.length === 0) return res.status(403).send(createResult("이미지를 삭제할 수 있는 권한이 없거나 이미지가 존재하지 않습니다."));
-      // 이미지가 존재하면 S3에서 삭제
-
-      if (currentImageIdx && currentImageIdx == image_idx) {
-         const deleteParams = {
-            Bucket: bucketName,
-            Key: 'folder/' + currentImageUrl.split('/').pop(),
-         };
-
-         // S3에서 이미지 삭제
-         await s3.deleteObject(deleteParams).promise();
-         console.log("기존 이미지 삭제:", currentImageUrl);
-      }
-
-
       res.locals.response = result;
       return res.status(200).send(result);
 
