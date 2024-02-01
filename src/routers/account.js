@@ -45,7 +45,7 @@ router.post('/login', checkLogout, createValidationMiddleware(['id', 'pw']), asy
 
       }, process.env.SECRET_KEY, {
          issuer: "haeju",
-         expiresIn: "30m"
+         expiresIn: "5h"
       });
       result.data.token = token;
 
