@@ -251,7 +251,7 @@ router.put("/:idx", checkLogin, createValidationMiddleware(['title', 'content'])
          const imageUrlToDelete = imageInfo.image_url;
 
          const deleteParams = {
-            Bucket: bucketName,
+            Bucket: process.env.AWS_BUCKET_NAME,
             Key: imageUrlToDelete.split('/').pop(),
          };
 
@@ -282,18 +282,33 @@ router.delete("/:idx", checkLogin, async (req, res, next) => {
       const { idx } = req.decoded;
 
       //이미지 지우기
-      const getImageQuery = "DELETE FROM homework.images WHERE post_idx = $1 AND user_idx = $2 RETURNING *";
+      const getImageQuery = "SELECT FROM homework.images WHERE post_idx = $1 AND user_idx = $2 RETURNING *";
       const getImageResults = await queryDatabase(getImageQuery, [postIdx, idx]);
-      if (getImageResults.length != 0) {
-         const deleteImageQuery = "DELETE FROM homework.images WHERE post_idx = $1 AND user_idx = $2 RETURNING *";
+      if (getImageResults.length !== 0) {
+         const deleteImageQuery = "DELETE FROM homework.images WHERE post_idx = $1 AND user_idx = $2 RETURNING image_url";
          const deleteImageResults = await queryDatabase(deleteImageQuery, [postIdx, idx]);
 
-         if (deleteImageResults.length === 0) return res.status(403).send(createResult("이미지를 삭제할 수 있는 권한이 없거나 이미지가 존재하지 않습니다."));
+         const deletedImageUrls = deleteImageResults.map(result => result.image_url);
+         // S3에서 이미지 삭제
+         for (const imageUrlToDelete of deletedImageUrls) {
+            const deleteParams = {
+               Bucket: process.env.AWS_BUCKET_NAME,
+               Key: 'folder/' + imageUrlToDelete.split('/').pop(),
+            };
+            // S3에서 이미지 삭제
+            await s3.deleteObject(deleteParams).promise();
+            console.log("기존 이미지 삭제:", imageUrlToDelete);
+         }
+         res.status(200).send(createResult("이미지가 성공적으로 삭제되었습니다."));
+      } else {
+         // 이미지가 존재하지 않으면 403 에러
+         res.status(403).send(createResult("이미지를 삭제할 수 있는 권한이 없거나 이미지가 존재하지 않습니다."));
       }
+
       //댓글 지우기
-      const getCommentQuery = "DELETE FROM homework.comment WHERE post_idx = $1 AND user_idx = $2 RETURNING *";
+      const getCommentQuery = "SELECT FROM homework.comment WHERE post_idx = $1 AND user_idx = $2 RETURNING *";
       const getCommentResults = await queryDatabase(getCommentQuery, [postIdx, idx]);
-      if (getCommentResults.length != 0) {
+      if (getCommentResults.length !== 0) {
          const deleteCommentQuery = "DELETE FROM homework.comment WHERE post_idx = $1 AND user_idx = $2 RETURNING *";
          const deleteCommentResults = await queryDatabase(deleteCommentQuery, [postIdx, idx]);
 
