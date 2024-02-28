@@ -10,6 +10,9 @@ const redis = require("redis").createClient();
 const uploadS3 = require('../middleware/uploadS3');
 const upload = require('../middleware/uploadServer');
 
+const aws = require('aws-sdk');
+const s3 = new aws.S3();
+
 //이미지 s3업로드
 router.post("/imageS3",
    checkLogin,
@@ -247,6 +250,8 @@ router.put("/:idx", checkLogin, createValidationMiddleware(['title', 'content'])
       const deleteImageUrlSql = "DELETE FROM homework.images WHERE post_idx = $1 RETURNING *"
       const getImageUrlResults = await queryDatabase(deleteImageUrlSql, [postIdx]);
       console.log(getImageUrlResults);
+
+      // S3에서 이미지 삭제
       for (const imageInfo of getImageUrlResults) {
          const imageUrlToDelete = imageInfo.image_url;
 
@@ -254,8 +259,6 @@ router.put("/:idx", checkLogin, createValidationMiddleware(['title', 'content'])
             Bucket: process.env.AWS_BUCKET_NAME,
             Key: imageUrlToDelete.split('/').pop(),
          };
-
-         // S3에서 이미지 삭제
          await s3.deleteObject(deleteParams).promise();
          console.log("이미지 삭제 완료:", imageUrlToDelete);
       }
@@ -282,7 +285,7 @@ router.delete("/:idx", checkLogin, async (req, res, next) => {
       const { idx } = req.decoded;
 
       //이미지 지우기
-      const getImageQuery = "SELECT FROM homework.images WHERE post_idx = $1 AND user_idx = $2 RETURNING *";
+      const getImageQuery = "SELECT * FROM homework.images WHERE post_idx = $1 AND user_idx = $2 RETURNING *";
       const getImageResults = await queryDatabase(getImageQuery, [postIdx, idx]);
       if (getImageResults.length !== 0) {
          const deleteImageQuery = "DELETE FROM homework.images WHERE post_idx = $1 AND user_idx = $2 RETURNING image_url";
@@ -306,7 +309,7 @@ router.delete("/:idx", checkLogin, async (req, res, next) => {
       }
 
       //댓글 지우기
-      const getCommentQuery = "SELECT FROM homework.comment WHERE post_idx = $1 AND user_idx = $2 RETURNING *";
+      const getCommentQuery = "SELECT * FROM homework.comment WHERE post_idx = $1 AND user_idx = $2 RETURNING *";
       const getCommentResults = await queryDatabase(getCommentQuery, [postIdx, idx]);
       if (getCommentResults.length !== 0) {
          const deleteCommentQuery = "DELETE FROM homework.comment WHERE post_idx = $1 AND user_idx = $2 RETURNING *";

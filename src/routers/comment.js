@@ -16,17 +16,45 @@ router.post("/", checkLogin, createValidationMiddleware(['content']), async (req
       const { idx } = req.decoded;
       const { post_idx, content } = req.body;
 
-      validation.validateContent(content);
       const addCommentQuery = "INSERT INTO homework.comment (comment, user_idx, post_idx) VALUES ($1, $2, $3) RETURNING *";
 
       // 댓글 작성 쿼리 실행
-      const { rows: addCommentResult } = await queryDatabase(addCommentQuery, [content, idx, post_idx]);
+      const addCommentResult = await queryDatabase(addCommentQuery, [content, idx, post_idx]);
 
       if (!addCommentResult || addCommentResult.length === 0) {
          return res.status(500).send(createResult("댓글 작성 중 에러가 발생하였습니다."));
       }
+
+      const addNotificationQuery = "INSERT INTO homework.notification (user_idx, content) VALUES ($1, $2)";
+      await queryDatabase(addNotificationQuery, [idx, `새로운 댓글이 작성되었습니다: ${content}`]);
+
       res.locals.response = result;
       return res.status(200).send(result);
+
+   } catch (error) {
+      next(error);
+   }
+});
+
+// 본인의 알람 목록 출력하는 API
+router.get("/notifications", checkLogin, async (req, res, next) => {
+   const result = createResult();
+
+   try {
+      const { idx } = req.decoded;
+
+      // 사용자의 알람 조회 쿼리 실행
+      const getNotificationsQuery = "SELECT * FROM homework.notification WHERE user_idx = $1";
+      const notifications = await queryDatabase(getNotificationsQuery, [idx]);
+
+      if (!notifications || notifications.length === 0) {
+         return res.status(404).send(createResult(idx + "알람이 없습니다."));
+      }
+
+      result.notifications = notifications;
+      res.locals.response = result;
+      res.status(200).send(result);
+
 
    } catch (error) {
       next(error);
