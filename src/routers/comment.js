@@ -25,8 +25,18 @@ router.post("/", checkLogin, createValidationMiddleware(['content']), async (req
          return res.status(500).send(createResult("댓글 작성 중 에러가 발생하였습니다."));
       }
 
-      const addNotificationQuery = "INSERT INTO homework.notification (user_idx, content) VALUES ($1, $2)";
-      await queryDatabase(addNotificationQuery, [idx, `새로운 댓글이 작성되었습니다: ${content}`]);
+
+      const addNotificationQuery = `WITH post_user AS (
+                                       SELECT user_idx 
+                                       FROM homework.post 
+                                       WHERE idx = $1
+                                    )
+                                    INSERT INTO homework.notification (user_idx, content)
+                                    SELECT user_idx, $2 AS content
+                                    FROM post_user`;
+      await queryDatabase(addNotificationQuery, [post_idx, `새로운 댓글이 작성되었습니다: ${content}`]);
+
+
 
       res.locals.response = result;
       return res.status(200).send(result);
